@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mielentila-tarkistus</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #1a1a1a;
+      color: #eee;
+      line-height: 1.6;
+    }
+    #box {
+      background: #333;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+    }
+    .question {
+      font-size: 1.4rem;
+      margin-bottom: 20px;
+    }
+    .small-note {
+      font-size: 0.9rem;
+      opacity: 0.7;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="box">
+  <div class="question" id="question">Sano "jatkuu" aloittaaksesi tarkistuksen.</div>
+  <div class="small-note">Voit sanoa milloin tahansa: "stop" keskeyttääksesi tai "jatkuu" jatkaaksesi.</div>
+</div>
+
+<script>
+// ----- Kysymykset -----
+const questions = [
+  "Onko hengitys tänään suhteellisen tasainen?",
+  "Tuntuuko kehossa enemmän jännitystä kuin rentoutta?",
+  "Onko ajatuksia, jotka yrittävät rynniä päälle?",
+  "Onko sisällä levottomuutta?",
+  "Tuntuuko, että hallitset tämän hetken?",
+  "Haluatko edetä tänään rauha ensin -linjalla?"
+];
+
+let qIndex = -1;
+let listening = false;
+let stopped = false;
+
+// ----- Puheentunnistus -----
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const rec = new SpeechRecognition();
+rec.continuous = true;
+rec.lang = "fi-FI";
+
+rec.onresult = (event) => {
+  const text = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+
+  if (text.includes("stop")) {
+    stopped = true;
+    showMessage("Keskeytetty. Sano \"jatkuu\" jatkaaksesi.");
+    return;
+  }
+
+  if (text.includes("jatkuu")) {
+    stopped = false;
+    nextQuestion();
+    return;
+  }
+
+  if (!stopped && listening && (text.includes("kyllä") || text.includes("ei"))) {
+    nextQuestion();
+  }
+};
+
+rec.onerror = (e) => {
+  console.log("Speech error:", e);
+};
+
+rec.onend = () => rec.start();
+rec.start();
+
+// ----- Näytä viesti -----
+function showMessage(msg) {
+  document.getElementById("question").textContent = msg;
+}
+
+// ----- Seuraava kysymys -----
+function nextQuestion() {
+  listening = true;
+  qIndex++;
+  if (qIndex >= questions.length) {
+    showMessage("Valmis tältä erää. Sano \"jatkuu\" aloittaaksesi uudelleen.");
+    qIndex = -1;
+    listening = false;
+    return;
+  }
+  showMessage(questions[qIndex]);
+}
+</script>
+
+</body>
+</html>

@@ -11,21 +11,24 @@
       background: #1a1a1a;
       color: #eee;
       line-height: 1.6;
+      margin: 0;
     }
     #box {
-      background: #333;
-      padding: 20px;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+      background: #2c2c2c;
+      padding: 22px;
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+      margin-top: 40px;
     }
     .question {
-      font-size: 1.4rem;
+      font-size: 1.8rem;
       margin-bottom: 20px;
+      font-weight: 600;
     }
     .small-note {
-      font-size: 0.9rem;
-      opacity: 0.7;
-      margin-top: 10px;
+      font-size: 1rem;
+      opacity: 0.75;
+      margin-top: 14px;
     }
   </style>
 </head>
@@ -37,21 +40,21 @@
 </div>
 
 <script>
-// ----- Kysymykset -----
+// ---------- Kysymykset ----------
 const questions = [
   "Onko hengitys tänään suhteellisen tasainen?",
   "Tuntuuko kehossa enemmän jännitystä kuin rentoutta?",
   "Onko ajatuksia, jotka yrittävät rynniä päälle?",
   "Onko sisällä levottomuutta?",
   "Tuntuuko, että hallitset tämän hetken?",
-  "Haluatko edetä tänään rauha ensin -linjalla?"
+  "Haluatko edetä tänään rauha ensin linjalla?"
 ];
 
 let qIndex = -1;
 let listening = false;
 let stopped = false;
 
-// ----- Puheentunnistus -----
+// ---------- Puheentunnistus ----------
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const rec = new SpeechRecognition();
 rec.continuous = true;
@@ -59,10 +62,11 @@ rec.lang = "fi-FI";
 
 rec.onresult = (event) => {
   const text = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
+  console.log("Kuultu:", text);
 
   if (text.includes("stop")) {
     stopped = true;
-    showMessage("Keskeytetty. Sano \"jatkuu\" jatkaaksesi.");
+    showMessage("Keskeytetty. Sano 'jatkuu' jatkaaksesi.");
     return;
   }
 
@@ -77,28 +81,36 @@ rec.onresult = (event) => {
   }
 };
 
-rec.onerror = (e) => {
-  console.log("Speech error:", e);
-};
-
+rec.onerror = (e) => console.log("Speech error:", e);
 rec.onend = () => rec.start();
 rec.start();
 
-// ----- Näytä viesti -----
+// ---------- Teksti ruudulle + ääneen ----------
 function showMessage(msg) {
   document.getElementById("question").textContent = msg;
+
+  // --- Tekstin puheeksi (TTS) ---
+  const utter = new SpeechSynthesisUtterance(msg);
+  utter.lang = "fi-FI";
+  utter.rate = 1.0;
+  utter.pitch = 1.0;
+
+  window.speechSynthesis.cancel();  // estää päällekkäiset puheet
+  window.speechSynthesis.speak(utter);
 }
 
-// ----- Seuraava kysymys -----
+// ---------- Seuraava kysymys ----------
 function nextQuestion() {
   listening = true;
   qIndex++;
+
   if (qIndex >= questions.length) {
-    showMessage("Valmis tältä erää. Sano \"jatkuu\" aloittaaksesi uudelleen.");
+    showMessage("Valmis tältä erää. Sano 'jatkuu' aloittaaksesi uudelleen.");
     qIndex = -1;
     listening = false;
     return;
   }
+
   showMessage(questions[qIndex]);
 }
 </script>

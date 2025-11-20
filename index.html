@@ -1,97 +1,164 @@
-// -------------------- PUHESYNTEESI --------------------
-function speakText(text) {
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = "fi-FI";
-  utter.rate = 1.0;
-  utter.pitch = 1.0;
-
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(utter);
-
-  return utter;
-}
-
-// -------------------- KYSYMYKSET --------------------
-const questions = [
-  "Onko hengitys tänään suhteellisen tasainen?",
-  "Tuntuuko kehossa enemmän jännitystä kuin rentoutta?",
-  "Onko ajatuksia, jotka yrittävät rynniä päälle?",
-  "Onko sisällä levottomuutta?",
-  "Tuntuuko, että hallitset tämän hetken?",
-  "Haluatko edetä tänään rauha ensin linjalla?"
-];
-
-let qIndex = -1;
-let stopped = false;
-let started = false;
-
-// -------------------- PUHEENTUNNISTUS --------------------
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-const rec = new SpeechRecognition();
-rec.lang = "fi-FI";
-rec.continuous = true;
-rec.interimResults = false;
-
-rec.onresult = (event) => {
-  const spoken = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-
-  if (spoken.includes("stop")) {
-    stopped = true;
-    showAndSpeak("Keskeytetty. Sano 'jatkuu' jatkaaksesi.");
-    return;
-  }
-
-  if (spoken.includes("jatkuu")) {
-    stopped = false;
-    nextQuestion();
-    return;
-  }
-
-  if (!stopped && (spoken.includes("kyllä") || spoken.includes("ei"))) {
-    nextQuestion();
-  }
-};
-
-rec.onend = () => {
-  if (started && !stopped) {
-    try { rec.start(); } catch(e) {}
-  }
-};
-
-// -------------------- NÄYTÄ + PUHU --------------------
-function showAndSpeak(text) {
-  document.getElementById("question").textContent = text;
-
-  const utter = speakText(text);
-
-  utter.onend = () => {
-    if (started && !stopped) {
-      try { rec.start(); } catch(e) {}
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Linjakuljettajan maadoitus</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #111827;
+      color: #e5e7eb;
+      margin: 0;
+      text-align: center;
     }
-  };
-}
+    h1 {
+      margin-top: 24px;
+      font-size: 1.6rem;
+    }
+    #box {
+      margin: 26px auto 0;
+      max-width: 480px;
+      background: #1f2933;
+      padding: 20px;
+      border-radius: 14px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.5);
+    }
+    #status {
+      font-size: 1rem;
+      opacity: 0.8;
+      margin-top: 12px;
+      min-height: 1.6em;
+    }
+    button {
+      margin-top: 24px;
+      padding: 16px;
+      font-size: 1.2rem;
+      border-radius: 999px;
+      border: none;
+      background: #10b981;
+      color: #fff;
+      width: 90%;
+      max-width: 320px;
+    }
+    #stopBtn {
+      background: #ef4444;
+      margin-top: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Linjakuljettajan maadoitus</h1>
 
-// -------------------- SEURAAVA KYSYMYS --------------------
-function nextQuestion() {
-  qIndex++;
+  <div id="box">
+    <div id="status">
+      Paina “Käynnistä” ennen ajoa. Ohjaus etenee sen jälkeen automaattisesti.
+    </div>
+    <button id="startBtn">KÄYNNISTÄ OHJAUS</button>
+    <button id="stopBtn" style="display:none;">STOP</button>
+  </div>
 
-  if (qIndex >= questions.length) {
-    showAndSpeak("Valmis tältä erää. Sano 'jatkuu' aloittaaksesi uudelleen.");
-    qIndex = -1;
-    return;
-  }
+  <script>
+    const steps = [
+      // 0 – aloitus
+      "Olen tässä kanssasi. Aloitetaan rauhallisesti. Sinun ei tarvitse muuttaa mitään. Riittää, että ajat.",
+      // 1 – perusohje
+      "Tämä harjoitus pitää sinut tässä hetkessä. Kuuntelet vain. Voit vastata mielessäsi, jos haluat.",
+      // 2 – ympäristö: punaiset autot
+      "Valitaan ensin ympäristö ankkuriksi. Kiinnitä huomio punaiseen väriin. Huomaa, jos näet punaisen auton, bussin tai kyltin.",
+      // 3
+      "Kun huomaat punaisen värin, se riittää. Et laske, et suorita. Vain pieni merkki siitä, että olet läsnä.",
+      // 4 – keho: yksi kohta
+      "Seuraavaksi keho. Valitse yksi kohta, joka tuntuu edes yhden prosentin rennommalta kuin muu keho. Se voi olla sormet, niska, jalat tai hengitys.",
+      // 5
+      "Jos tällaista kohtaa ei tunnu, sekin on täysin ok. Silloin vain huomaat, että juuri nyt on näin. Et tee mitään väärin.",
+      // 6 – ympäristö: päähine
+      "Palaamme ympäristöön. Huomaa, jos näet ihmisen, jolla on päähine, lippis, huppu tai pipo. Voit vastata mielessäsi kyllä tai ei.",
+      // 7
+      "Jos et näe ketään, se on täysin ok. Harjoitus toimii silti. Tärkeintä on, että huomaat mitä ympärillä on, ei mitä puuttuu.",
+      // 8 – hengitys
+      "Nyt hengitys. Huomaa yksi uloshengitys, joka on hitusen pehmeämpi kuin muut. Ei tarvitse hengittää syvään. Vain hieman pehmeämpi uloshengitys.",
+      // 9
+      "Hyvä. Riittää, että yksi hengitys tuntui edes vähän erilaiselta. Se on jo maadoittumista.",
+      // 10 – yhdistelmä
+      "Anna nyt ympäristön ja kehon olla molemmat mukana. Näet tietä, autoja, ihmisiä. Ja samanaikaisesti joku kohta kehossa voi olla edes hieman pehmeämpi.",
+      // 11 – hyväksyntä
+      "Jos mieleen tulevat exä, lapset tai pettymykset, huomaat vain lauseen: ajat nyt bussia, muu hoidetaan myöhemmin. Sinä saat keskittyä tiehen.",
+      // 12 – ajoklinikan valmistelu
+      "Ajoklinikka ei etsi täydellistä ihmistä, vaan ihmistä joka tunnistaa reaktionsa. Sinä jo harjoittelet sitä. Se on sinun vahvuutesi.",
+      // 13 – lopetus
+      "Viimeinen hetki. Huomaa yksi asia, joka kertoo, että sinulla on kyky jatkaa: se voi olla käsi ratilla, jalka polkimella tai tapa, jolla olet hoitanut tämän päivän tähän asti.",
+      // 14 – päätös
+      "Hyvä. Tämä riittää tältä kierrokselta. Voit jatkaa ajoa normaalisti. Jos haluat, voit käynnistää ohjauksen uudestaan milloin tahansa."
+    ];
 
-  try { rec.stop(); } catch(e) {}
+    let running = false;
+    let stopped = false;
+    let currentIndex = 0;
 
-  showAndSpeak(questions[qIndex]);
-}
+    function speak(text, cb) {
+      if (!("speechSynthesis" in window)) {
+        document.getElementById("status").textContent =
+          "Tämä laite ei tue puhesyntetisaattoria. Näet silti tekstit ruudulla.";
+        if (cb) cb();
+        return;
+      }
 
-// -------------------- START BUTTON --------------------
-document.getElementById("startBtn").onclick = () => {
-  started = true;
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = "fi-FI";
+      utter.rate = 1.0;
+      utter.pitch = 1.0;
 
-  document.getElementById("startBtn").style.display = "none";
-  document.getElementById("box").style.display = "block";
+      utter.onend = () => {
+        if (cb) cb();
+      };
 
-  showAndSpeak("Sano 'jatkuu' aloittaaksesi tarkistuksen.");
-};
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utter);
+    }
+
+    function runStep(index) {
+      if (stopped || !running || index >= steps.length) {
+        running = false;
+        stopped = false;
+        document.getElementById("status").textContent =
+          "Kierros päättyi. Voit käynnistää ohjauksen tarvittaessa uudestaan.";
+        document.getElementById("startBtn").style.display = "inline-block";
+        document.getElementById("stopBtn").style.display = "none";
+        return;
+      }
+
+      currentIndex = index;
+      const text = steps[index];
+      document.getElementById("status").textContent = text;
+
+      // puhu ja siirry seuraavaan pienen tauon jälkeen
+      speak(text, () => {
+        if (!running || stopped) return;
+        setTimeout(() => runStep(index + 1), 3500);
+      });
+    }
+
+    document.getElementById("startBtn").onclick = () => {
+      if (running) return;
+      running = true;
+      stopped = false;
+      currentIndex = 0;
+      document.getElementById("startBtn").style.display = "none";
+      document.getElementById("stopBtn").style.display = "inline-block";
+      runStep(0);
+    };
+
+    document.getElementById("stopBtn").onclick = () => {
+      stopped = true;
+      running = false;
+      window.speechSynthesis.cancel();
+      document.getElementById("status").textContent =
+        "Ohjaus pysäytetty. Voit käynnistää sen koska tahansa uudestaan.";
+      document.getElementById("startBtn").style.display = "inline-block";
+      document.getElementById("stopBtn").style.display = "none";
+    };
+  </script>
+</body>
+</html> 

@@ -12,6 +12,7 @@
       color: #eee;
       line-height: 1.6;
       margin: 0;
+      text-align: center;
     }
     #box {
       background: #2c2c2c;
@@ -30,17 +31,45 @@
       opacity: 0.75;
       margin-top: 14px;
     }
+    #startBtn {
+      margin-top: 30px;
+      padding: 20px;
+      font-size: 1.4rem;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 300px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
 
-<div id="box">
-  <div class="question" id="question">Sano "jatkuu" aloittaaksesi tarkistuksen.</div>
-  <div class="small-note">Voit sanoa milloin tahansa: "stop" keskeyttääksesi tai "jatkuu" jatkaaksesi.</div>
+<h2>Mielentila-tarkistus</h2>
+
+<button id="startBtn">KÄYNNISTÄ KUUNTELU</button>
+
+<div id="box" style="display:none;">
+  <div class="question" id="question"></div>
+  <div class="small-note">Sano: "jatkuu", "stop", "kyllä" tai "ei".</div>
 </div>
 
 <script>
-// ---------- Kysymykset ----------
+let started = false;
+
+// -------------------- PUHEEN SYNTETISOINTI --------------------
+function speak(msg) {
+  const utter = new SpeechSynthesisUtterance(msg);
+  utter.lang = "fi-FI";
+  utter.rate = 1.0;
+  utter.pitch = 1.0;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utter);
+}
+
+// -------------------- KESKUSTELUN LOGIIKKA --------------------
 const questions = [
   "Onko hengitys tänään suhteellisen tasainen?",
   "Tuntuuko kehossa enemmän jännitystä kuin rentoutta?",
@@ -54,7 +83,7 @@ let qIndex = -1;
 let listening = false;
 let stopped = false;
 
-// ---------- Puheentunnistus ----------
+// -------------- PUHEENTUNNISTUS -------------
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 const rec = new SpeechRecognition();
 rec.continuous = true;
@@ -62,57 +91,57 @@ rec.lang = "fi-FI";
 
 rec.onresult = (event) => {
   const text = event.results[event.results.length - 1][0].transcript.trim().toLowerCase();
-  console.log("Kuultu:", text);
 
   if (text.includes("stop")) {
     stopped = true;
-    showMessage("Keskeytetty. Sano 'jatkuu' jatkaaksesi.");
+    show("Keskeytetty. Sano 'jatkuu' jatkaaksesi.");
     return;
   }
-
   if (text.includes("jatkuu")) {
     stopped = false;
-    nextQuestion();
+    next();
     return;
   }
-
   if (!stopped && listening && (text.includes("kyllä") || text.includes("ei"))) {
-    nextQuestion();
+    next();
   }
 };
 
+rec.onend = () => { if (started) rec.start(); };
 rec.onerror = (e) => console.log("Speech error:", e);
-rec.onend = () => rec.start();
-rec.start();
 
-// ---------- Teksti ruudulle + ääneen ----------
-function showMessage(msg) {
+// -------------- UI & TTS --------------
+function show(msg) {
   document.getElementById("question").textContent = msg;
-
-  // --- Tekstin puheeksi (TTS) ---
-  const utter = new SpeechSynthesisUtterance(msg);
-  utter.lang = "fi-FI";
-  utter.rate = 1.0;
-  utter.pitch = 1.0;
-
-  window.speechSynthesis.cancel();  // estää päällekkäiset puheet
-  window.speechSynthesis.speak(utter);
+  speak(msg);
 }
 
-// ---------- Seuraava kysymys ----------
-function nextQuestion() {
+function next() {
   listening = true;
   qIndex++;
 
   if (qIndex >= questions.length) {
-    showMessage("Valmis tältä erää. Sano 'jatkuu' aloittaaksesi uudelleen.");
+    show("Valmis tältä erää. Sano 'jatkuu' aloittaaksesi uudelleen.");
     qIndex = -1;
     listening = false;
     return;
   }
 
-  showMessage(questions[qIndex]);
+  show(questions[qIndex]);
 }
+
+// -------------- START BUTTON --------------
+document.getElementById("startBtn").onclick = () => {
+  // Android sallii nyt puheen
+  started = true;
+
+  // Piilota nappi
+  document.getElementById("startBtn").style.display = "none";
+  document.getElementById("box").style.display = "block";
+
+  rec.start();
+  show("Sano 'jatkuu' aloittaaksesi tarkistuksen.");
+};
 </script>
 
 </body>

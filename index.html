@@ -60,91 +60,90 @@
   </div>
 
   <script>
+    // -----------------------------------
+    // WAKE LOCK - estää näytön sammumisen
+    // -----------------------------------
+    let wakeLock = null;
+
+    async function enableWakeLock() {
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        console.log("Wake Lock päällä");
+      } catch (err) {
+        console.log("Wake Lock ei toimi:", err);
+      }
+    }
+
+    async function disableWakeLock() {
+      try {
+        if (wakeLock) {
+          await wakeLock.release();
+          wakeLock = null;
+          console.log("Wake Lock pois");
+        }
+      } catch (err) {}
+    }
+
+    // -----------------------------------
+    // OHJAUSTEKSIT
+    // -----------------------------------
     const steps = [
-      // 0 – aloitus
       "Olen tässä kanssasi. Aloitetaan rauhallisesti. Sinun ei tarvitse muuttaa mitään. Riittää, että ajat.",
-      // 1 – perusohje
       "Tämä harjoitus pitää sinut tässä hetkessä. Kuuntelet vain. Voit vastata mielessäsi, jos haluat.",
-      // 2 – ympäristö: punaiset autot
       "Valitaan ensin ympäristö ankkuriksi. Kiinnitä huomio punaiseen väriin. Huomaa, jos näet punaisen auton, bussin tai kyltin.",
-      // 3
       "Kun huomaat punaisen värin, se riittää. Et laske, et suorita. Vain pieni merkki siitä, että olet läsnä.",
-      // 4 – keho: yksi kohta
-      "Seuraavaksi keho. Valitse yksi kohta, joka tuntuu edes yhden prosentin rennommalta kuin muu keho. Se voi olla sormet, niska, jalat tai hengitys.",
-      // 5
-      "Jos tällaista kohtaa ei tunnu, sekin on täysin ok. Silloin vain huomaat, että juuri nyt on näin. Et tee mitään väärin.",
-      // 6 – ympäristö: päähine
-      "Palaamme ympäristöön. Huomaa, jos näet ihmisen, jolla on päähine, lippis, huppu tai pipo. Voit vastata mielessäsi kyllä tai ei.",
-      // 7
-      "Jos et näe ketään, se on täysin ok. Harjoitus toimii silti. Tärkeintä on, että huomaat mitä ympärillä on, ei mitä puuttuu.",
-      // 8 – hengitys
-      "Nyt hengitys. Huomaa yksi uloshengitys, joka on hitusen pehmeämpi kuin muut. Ei tarvitse hengittää syvään. Vain hieman pehmeämpi uloshengitys.",
-      // 9
-      "Hyvä. Riittää, että yksi hengitys tuntui edes vähän erilaiselta. Se on jo maadoittumista.",
-      // 10 – yhdistelmä
-      "Anna nyt ympäristön ja kehon olla molemmat mukana. Näet tietä, autoja, ihmisiä. Ja samanaikaisesti joku kohta kehossa voi olla edes hieman pehmeämpi.",
-      // 11 – hyväksyntä
-      "Jos mieleen tulevat exä, lapset tai pettymykset, huomaat vain lauseen: ajat nyt bussia, muu hoidetaan myöhemmin. Sinä saat keskittyä tiehen.",
-      // 12 – ajoklinikan valmistelu
-      "Ajoklinikka ei etsi täydellistä ihmistä, vaan ihmistä joka tunnistaa reaktionsa. Sinä jo harjoittelet sitä. Se on sinun vahvuutesi.",
-      // 13 – lopetus
-      "Viimeinen hetki. Huomaa yksi asia, joka kertoo, että sinulla on kyky jatkaa: se voi olla käsi ratilla, jalka polkimella tai tapa, jolla olet hoitanut tämän päivän tähän asti.",
-      // 14 – päätös
-      "Hyvä. Tämä riittää tältä kierrokselta. Voit jatkaa ajoa normaalisti. Jos haluat, voit käynnistää ohjauksen uudestaan milloin tahansa."
+      "Seuraavaksi keho. Valitse yksi kohta, joka tuntuu edes yhden prosentin rennommalta.",
+      "Jos tällaista kohtaa ei tunnu, sekin on täysin ok. Silloin vain huomaat, että juuri nyt on näin.",
+      "Palaamme ympäristöön. Huomaa, jos näet ihmisen, jolla on päähine, lippis, huppu tai pipo.",
+      "Jos et näe ketään, se on täysin ok. Harjoitus toimii silti.",
+      "Nyt hengitys. Huomaa yksi uloshengitys, joka on hitusen pehmeämpi. Ei tarvitse syventää hengitystä.",
+      "Hyvä. Se riittää. Se on jo maadoittumista.",
+      "Anna nyt ympäristön ja kehon olla läsnä samaan aikaan.",
+      "Jos mieleen tulee exä, lapset tai pettymykset, huomaat vain lauseen: ajat nyt bussia, muu hoidetaan myöhemmin.",
+      "Ajoklinikka ei etsi täydellistä ihmistä, vaan ihmistä, joka tunnistaa reaktionsa. Sinä teet jo niin.",
+      "Viimeinen hetki. Huomaa yksi asia, joka kertoo, että sinulla on kyky jatkaa.",
+      "Hyvä. Tämä riittää tältä kierrokselta. Voit käynnistää ohjauksen uudestaan milloin tahansa."
     ];
 
     let running = false;
     let stopped = false;
-    let currentIndex = 0;
 
     function speak(text, cb) {
-      if (!("speechSynthesis" in window)) {
-        document.getElementById("status").textContent =
-          "Tämä laite ei tue puhesyntetisaattoria. Näet silti tekstit ruudulla.";
-        if (cb) cb();
-        return;
-      }
-
       const utter = new SpeechSynthesisUtterance(text);
       utter.lang = "fi-FI";
-      utter.rate = 1.0;
-      utter.pitch = 1.0;
+      utter.rate = 1;
+      utter.pitch = 1;
 
-      utter.onend = () => {
-        if (cb) cb();
-      };
+      utter.onend = () => cb && cb();
 
       window.speechSynthesis.cancel();
       window.speechSynthesis.speak(utter);
     }
 
-    function runStep(index) {
-      if (stopped || !running || index >= steps.length) {
+    function runStep(i) {
+      if (stopped || !running || i >= steps.length) {
         running = false;
         stopped = false;
+        disableWakeLock();
         document.getElementById("status").textContent =
-          "Kierros päättyi. Voit käynnistää ohjauksen tarvittaessa uudestaan.";
+          "Kierros päättyi. Voit käynnistää ohjauksen uudestaan.";
         document.getElementById("startBtn").style.display = "inline-block";
         document.getElementById("stopBtn").style.display = "none";
         return;
       }
 
-      currentIndex = index;
-      const text = steps[index];
-      document.getElementById("status").textContent = text;
+      document.getElementById("status").textContent = steps[i];
 
-      // puhu ja siirry seuraavaan pienen tauon jälkeen
-      speak(text, () => {
+      speak(steps[i], () => {
         if (!running || stopped) return;
-        setTimeout(() => runStep(index + 1), 3500);
+        setTimeout(() => runStep(i + 1), 3000);
       });
     }
 
     document.getElementById("startBtn").onclick = () => {
-      if (running) return;
       running = true;
       stopped = false;
-      currentIndex = 0;
+      enableWakeLock();
       document.getElementById("startBtn").style.display = "none";
       document.getElementById("stopBtn").style.display = "inline-block";
       runStep(0);
@@ -153,12 +152,12 @@
     document.getElementById("stopBtn").onclick = () => {
       stopped = true;
       running = false;
+      disableWakeLock();
       window.speechSynthesis.cancel();
-      document.getElementById("status").textContent =
-        "Ohjaus pysäytetty. Voit käynnistää sen koska tahansa uudestaan.";
+      document.getElementById("status").textContent = "Ohjaus keskeytetty.";
       document.getElementById("startBtn").style.display = "inline-block";
       document.getElementById("stopBtn").style.display = "none";
     };
   </script>
 </body>
-</html> 
+</html>
